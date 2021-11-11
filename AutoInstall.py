@@ -1,4 +1,5 @@
 import sys
+import re
 import time
 import pexpect
 
@@ -54,24 +55,21 @@ class Connection(object):
         expect_user_list = []
         expect_user_list.append(r"\S+@+\S+:\~\$ ")
         expect_user_list.append(r"[Ll]ogin[:]?\s*")
-        # expect_user_list.append(r"[>#\$]\s?")
+        expect_user_list.append(r"\S+@+\S+:+\/+\#+\s*")
         choice = self.expect(expect_user_list,10)
         if choice == 0:
             print("-----------")
             return
-        if choice == 1:
+        elif choice == 1:
             self.sendline(self.username)
             self.expect(r"[Pp]assword[:]?\s*")
             self.sendline(self.password)
             return
-        # if choice == 2:
-        #     self.sendline("end")
-        # try:
-        #     self.expect(r":~$\s*")
-        #     print("success")
-        #     pass
-        # except pexpect.TIMEOUT:
-        #     raise Exception("Device {} Login failed".format(self.hostname))
+        elif choice == 2:
+            self.sendline("exit")
+            return
+        else:
+            sys.exit("Connection Error!")
 
     def reinstall(self,url=None):
         def reboot():
@@ -95,9 +93,6 @@ class Connection(object):
         time.sleep(1)
         self.handler.send("\u001b[B")
         self.handler.send("\u001b[B")
-        # time.sleep(1)
-        # self.handler.send("\u001b[B")
-        # self.handler.send("\u001b[B")
         self.handler.send("\n")
         self.handler.send("\n")
         time.sleep(30)
@@ -114,18 +109,47 @@ class Connection(object):
         self.handler.send("\n")
         time.sleep(5)
         self.handler.sendline("onie-nos-install {}".format(url))
+        print("\nInstalling from {}\n".format(url))
         self.handler.send("\n")
         self.handler.send("\n")
         return
 
+    def verify(self,retry=1):
+        time.sleep(60)
+        print("Jump into verify...")
+        self.handler.expect(r"[Ll]ogin[:]?\s*",timeout=600)
+        print("login again~")
+        self.handler.sendline(self.username)
+        self.handler.expect(r"[Pp]assword[:]?\s*", timeout=30)
+        self.handler.sendline(self.password)
+        self.handler.expect(r"\S+@+\S+:\~\$ ", timeout=30)
+
+        i = 0
+        while i < retry:
+            time.sleep(60)
+            self.handler.sendline("docker ps")
+            self.expect(r"\S+@+\S+:\~\$ ", timeout=30)
+            output = str(self.handler.before)
+            for line in output.split('\n'):
+                result = re.search(r"docker-syncd:", line)
+            if result:
+                print("Sonic reboot syccessfully!")
+                sys.exit(0)
+            elif not result and i<retry:
+                i=i+1
+                time.sleep(60)
+            else:
+                sys.exit("Syncd is not running.")
+
+
     def close(self):
         if not self.handler:
-            print("No connection\n")
+            sys.exit("No connection")
         self.handler.close(force=True)
 
 if __name__=="__main__":
-    sys.argv[1]
     c = Connection(sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4],"telnet","debug")
     c.connect()
     c.reinstall(sys.argv[5])
-    #"http://11.1.1.69/yecsong-sonic-400G-20210930.bin"
+    c.verify(10)
+    c.close()
