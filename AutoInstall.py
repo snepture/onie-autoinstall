@@ -115,14 +115,39 @@ class Connection(object):
         return
 
     def verify(self,retry=1):
-        time.sleep(60)
+        time.sleep(300)
         print("Jump into verify...")
-        self.handler.expect(r"[Ll]ogin[:]?\s*",timeout=600)
+        expect_user_list = []
+        expect_user_list.append(r"[Ll]ogin[:]?\s*")
+        expect_user_list.append(r"[Pp]assword[:]?\s*")
+        expect_user_list.append(r"\S+@+\S+:\~\$ ")
+        flag = 0
+        times = 0
+        self.handler.expect(r"[Ll]ogin[:]?\s*",timeout=9999)
         print("login again~")
-        self.handler.sendline(self.username)
-        self.handler.expect(r"[Pp]assword[:]?\s*", timeout=30)
-        self.handler.sendline(self.password)
-        self.handler.expect(r"\S+@+\S+:\~\$ ", timeout=30)
+        while flag==0:
+            choice = self.expect(expect_user_list)
+            if choice == 0:
+                self.handler.sendline(self.username)
+            elif choice == 1:
+                self.handler.sendline(self.password)
+            elif choice == 2:
+                flag=1
+            elif times>5:
+                print("Timeout")
+                sys.exit("Timeout")
+            else:
+                self.handler.send("\n")
+                time.sleep(10)
+                times=times+1
+
+        #
+        # # self.handler.expect(r"[Ll]ogin[:]?\s*",timeout=600)
+        # print("login again~")
+        # self.handler.sendline(self.username)
+        # self.handler.expect(r"[Pp]assword[:]?\s*", timeout=30)
+        # self.handler.sendline(self.password)
+        # self.handler.expect(r"\S+@+\S+:\~\$ ", timeout=30)
 
         i = 0
         while i < retry:
