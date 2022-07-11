@@ -19,6 +19,7 @@ class Connection(object):
         self.password=password
         self.protocol=protocol
         self.debug=debug
+        self.flag="false"
 
     def expect(self,param,timeout=None):
         a = self.handler.expect(param,timeout=timeout)
@@ -86,7 +87,7 @@ class Connection(object):
         self.handler.send("\u001b[B")
         self.expect(r"before booting or `c' for a command-line")
 
-        self.handler.send("\n")
+        # self.handler.send("\n")
         time.sleep(1)
         self.handler.send("\u001b[B")
         self.handler.send("\u001b[B")
@@ -95,6 +96,7 @@ class Connection(object):
         self.handler.send("\u001b[B")
         self.handler.send("\n")
         self.handler.send("\n")
+        # self.expect("onie-install")
         time.sleep(30)
         self.handler.send("\n")
         self.handler.send("\n")
@@ -112,6 +114,9 @@ class Connection(object):
         print("\nInstalling from {}\n".format(url))
         self.handler.send("\n")
         self.handler.send("\n")
+        if self.expect(r"Installing SONiC in ONIE") == 0:
+            print("Install SONIC in ONIE\n")
+            self.flag = True
         return
 
     def verify(self,retry=1):
@@ -176,5 +181,11 @@ if __name__=="__main__":
     c = Connection(sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4],"telnet","debug")
     c.connect()
     c.reinstall(sys.argv[5])
+    time = 0
+    if c.flag is not True and time<=5:
+        c.reinstall(sys.argv[5])
+        time+=1
+    elif time>5:
+        sys.exit("Fail to install.")
     c.verify(10)
     c.close()
