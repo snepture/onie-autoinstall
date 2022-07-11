@@ -168,7 +168,7 @@ class Connection(object):
                 print("Sonic reboot syccessfully!")
                 sys.exit(0)
             elif not result and i<retry:
-                i=i+1
+                i+=1
                 time.sleep(60)
             else:
                 sys.exit("Syncd is not running.")
@@ -183,10 +183,10 @@ if __name__=="__main__":
     c = Connection(sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4],"telnet","debug")
     c.connect()
     tries = 1
-    if c.flag is not True and tries<=5:
+    while c.flag is not True and tries<=5:
         c.reinstall(sys.argv[5], tries)
         tries+=1
-    elif tries>5:
+    if tries>5:
         sys.exit("Fail to install.")
     c.verify(10)
     c.close()
